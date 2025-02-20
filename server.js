@@ -112,6 +112,10 @@
 
 
 
+
+
+
+
 // require('dotenv').config();
 // const express = require('express');
 // const mongoose = require('mongoose');
@@ -121,6 +125,8 @@
 
 // const app = express();
 // app.use(bodyParser.json());
+// app.use(express.json()); // Ensure JSON parsing
+// app.use(express.urlencoded({ extended: true }));
 
 // // Connect to MongoDB
 // mongoose.connect(process.env.MONGO_URI, {
@@ -137,12 +143,13 @@
 
 // const User = mongoose.model('User', UserSchema);
 
-// // Login API (Auto Register If User Doesn't Exist)
+// // Login API (Registers User if Not Exists)
 // app.post('/login', async (req, res) => {
 //     const { username, password } = req.body;
-//     console.log("Login Attempt:", { username, password });
+//     console.log("🔹 Login Attempt:", { username, password });
 
 //     if (!username || !password) {
+//         console.log("❌ Missing username or password");
 //         return res.status(400).json({ message: "Username and password are required" });
 //     }
 
@@ -161,6 +168,8 @@
 
 //     // Check Password
 //     const isMatch = await bcrypt.compare(password, user.password);
+//     console.log("🔑 Password Match:", isMatch);
+
 //     if (!isMatch) {
 //         console.log("❌ Password does not match");
 //         return res.status(401).json({ message: "Invalid username or password" });
@@ -169,13 +178,13 @@
 //     // Generate JWT Token
 //     const token = jwt.sign({ userId: user._id, username: user.username }, process.env.SECRET_KEY, { expiresIn: '1h' });
 
-//     console.log("✅ Login Successful, Token:", token);
-//     res.json({ message: "Login successful", token });
+//     console.log("✅ Login Successful, Redirecting to Dashboard...");
+//     res.json({ message: "Login successful", token, redirect: "/dashboard" });
 // });
 
-// // Protected Dashboard API (Requires Token)
+// // Protected Dashboard API (Only accessible with a valid token)
 // app.get('/dashboard', (req, res) => {
-//     const token = req.headers.authorization;
+//     const token = req.headers.authorization?.split(" ")[1];
 
 //     if (!token) {
 //         return res.status(403).json({ message: "No token provided" });
@@ -200,17 +209,16 @@
 
 
 
+
+
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(bodyParser.json());
-app.use(express.json()); // Ensure JSON parsing
-app.use(express.urlencoded({ extended: true }));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
@@ -227,13 +235,12 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', UserSchema);
 
-// Login API (Registers User if Not Exists)
-app.post('/login', async (req, res) => {
-    const { username, password } = req.body;
-    console.log("🔹 Login Attempt:", { username, password });
+// Login API (Using URL Params Instead of JSON)
+app.get('/login/:username/:password', async (req, res) => {
+    const { username, password } = req.params; // Extracting from URL parameters
+    console.log("Login Attempt:", { username, password });
 
     if (!username || !password) {
-        console.log("❌ Missing username or password");
         return res.status(400).json({ message: "Username and password are required" });
     }
 
@@ -252,8 +259,6 @@ app.post('/login', async (req, res) => {
 
     // Check Password
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log("🔑 Password Match:", isMatch);
-
     if (!isMatch) {
         console.log("❌ Password does not match");
         return res.status(401).json({ message: "Invalid username or password" });
@@ -262,13 +267,13 @@ app.post('/login', async (req, res) => {
     // Generate JWT Token
     const token = jwt.sign({ userId: user._id, username: user.username }, process.env.SECRET_KEY, { expiresIn: '1h' });
 
-    console.log("✅ Login Successful, Redirecting to Dashboard...");
-    res.json({ message: "Login successful", token, redirect: "/dashboard" });
+    console.log("✅ Login Successful, Token:", token);
+    res.json({ message: "Login successful", token });
 });
 
-// Protected Dashboard API (Only accessible with a valid token)
-app.get('/dashboard', (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
+// Protected Dashboard API (Requires Token)
+app.get('/dashboard/:token', (req, res) => {
+    const { token } = req.params; // Extracting token from URL parameter
 
     if (!token) {
         return res.status(403).json({ message: "No token provided" });
